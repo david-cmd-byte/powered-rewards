@@ -10,3 +10,17 @@
 (define-constant ERR-LEADERBOARD-FULL (err u5))
 (define-constant ERR-ALREADY-REGISTERED (err u6))
 (define-constant ERR-INVALID-REWARD (err u7))
+
+;; NFT trait implementation
+(define-non-fungible-token game-asset uint)
+
+;; Game Asset Metadata
+(define-map game-asset-metadata 
+  { token-id: uint }
+  { 
+    name: (string-ascii 50),
+    description: (string-ascii 200),
+    rarity: (string-ascii 20),
+    power-level: uint
+  }
+)
