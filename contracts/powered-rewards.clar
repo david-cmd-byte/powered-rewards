@@ -11,6 +11,11 @@
 (define-constant ERR-ALREADY-REGISTERED (err u6))
 (define-constant ERR-INVALID-REWARD (err u7))
 
+;; Storage for game configuration and state
+(define-data-var game-fee uint u10)  ;; Entry fee in STX
+(define-data-var max-leaderboard-entries uint u50)
+(define-data-var total-prize-pool uint u0)
+
 ;; NFT trait implementation
 (define-non-fungible-token game-asset uint)
 
