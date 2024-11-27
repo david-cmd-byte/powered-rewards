@@ -1,6 +1,6 @@
 ;; title: Powered Gaming Ecosystem Smart Contract
-;; summary: A secure smart contract for managing a gaming ecosystem with NFTs, player registration, score tracking, and reward distribution.
-;; description: Enhanced version with improved input validation and security checks.
+;; summary: A smart contract for managing a gaming ecosystem with NFTs, player registration, score tracking, and reward distribution.
+;; description: This contract allows game administrators to manage game assets, register players, update scores, and distribute rewards. It includes functionalities for minting NFTs, maintaining a leaderboard, and distributing Bitcoin rewards to top players.
 
 ;; Error Constants
 (define-constant ERR-NOT-AUTHORIZED (err u1))
