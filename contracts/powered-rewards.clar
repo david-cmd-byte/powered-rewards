@@ -167,3 +167,19 @@
     (ok true)
   )
 )
+
+;; Distribute Bitcoin rewards
+(define-public (distribute-bitcoin-rewards)
+  (let 
+    (
+      (top-players (get-top-players))
+    )
+    (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    ;; Placeholder for Bitcoin reward distribution logic
+    ;; In a real implementation, this would interact with a Bitcoin bridge
+    (fold distribute-reward top-players true)
+    
+    (ok true)
+  )
+)
