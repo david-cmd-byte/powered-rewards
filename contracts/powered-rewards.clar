@@ -208,3 +208,25 @@
     true
   )
 )
+
+;; Calculate reward based on player's score
+(define-private (calculate-reward (score uint))
+  (if (> score u100)
+    (* score u10)  ;; More complex reward calculation possible
+    u0
+  )
+)
+
+;; Get top players
+(define-read-only (get-top-players)
+  (let 
+    (
+      (max-entries (var-get max-leaderboard-entries))
+    )
+    ;; This is a simplified implementation
+    ;; A more sophisticated version would sort and select top players
+    (list 
+      tx-sender  ;; Placeholder - would be actual top players
+    )
+  )
+)
