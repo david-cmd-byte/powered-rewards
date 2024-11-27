@@ -39,3 +39,20 @@
     total-rewards: uint 
   }
 )
+
+;; Whitelist for game creators and administrators
+(define-map game-admin-whitelist principal bool)
+
+;; Authorization check
+(define-private (is-game-admin (sender principal))
+  (default-to false (map-get? game-admin-whitelist sender))
+)
+
+;; Add game administrator
+(define-public (add-game-admin (new-admin principal))
+  (begin
+    (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    (map-set game-admin-whitelist new-admin true)
+    (ok true)
+  )
+)
