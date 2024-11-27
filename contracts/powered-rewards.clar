@@ -56,3 +56,37 @@
     (ok true)
   )
 )
+
+;; Mint new game asset NFT
+(define-public (mint-game-asset 
+  (name (string-ascii 50))
+  (description (string-ascii 200))
+  (rarity (string-ascii 20))
+  (power-level uint)
+)
+  (let 
+    (
+      (token-id (+ (var-get total-game-assets) u1))
+    )
+    (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    ;; Mint NFT
+    (try! (nft-mint? game-asset token-id tx-sender))
+    
+    ;; Store metadata
+    (map-set game-asset-metadata 
+      { token-id: token-id }
+      {
+        name: name,
+        description: description, 
+        rarity: rarity,
+        power-level: power-level
+      }
+    )
+    
+    ;; Increment total assets
+    (var-set total-game-assets token-id)
+    
+    (ok token-id)
+  )
+)
