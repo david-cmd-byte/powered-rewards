@@ -230,3 +230,24 @@
     )
   )
 )
+
+;; Initialize game configuration
+(define-public (initialize-game 
+  (entry-fee uint) 
+  (max-entries uint)
+)
+  (begin
+    (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    (var-set game-fee entry-fee)
+    (var-set max-leaderboard-entries max-entries)
+    
+    (ok true)
+  )
+)
+
+;; Global variables
+(define-data-var total-game-assets uint u0)
+
+;; Initial setup - first admin is contract deployer
+(map-set game-admin-whitelist tx-sender true)
