@@ -183,3 +183,28 @@
     (ok true)
   )
 )
+
+;; Helper function to distribute rewards
+(define-private (distribute-reward 
+  (player principal) 
+  (previous-result bool)
+)
+  (let 
+    (
+      (player-stats (unwrap! 
+        (map-get? leaderboard { player: player }) 
+        false
+      ))
+      (reward-amount (calculate-reward (get score player-stats)))
+    )
+    ;; Update total rewards
+    (map-set leaderboard 
+      { player: player }
+      (merge player-stats 
+        { total-rewards: (+ (get total-rewards player-stats) reward-amount) }
+      )
+    )
+    
+    true
+  )
+)
