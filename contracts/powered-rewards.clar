@@ -90,3 +90,14 @@
     (ok token-id)
   )
 )
+
+;; Transfer game asset
+(define-public (transfer-game-asset (token-id uint) (recipient principal))
+  (begin
+    (asserts! 
+      (is-eq tx-sender (unwrap! (nft-get-owner? game-asset token-id) ERR-INVALID-GAME-ASSET))
+      ERR-NOT-AUTHORIZED
+    )
+    (nft-transfer? game-asset token-id tx-sender recipient)
+  )
+)
