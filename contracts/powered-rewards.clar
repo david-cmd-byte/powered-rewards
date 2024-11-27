@@ -136,3 +136,34 @@
     (ok true)
   )
 )
+
+;; Update player score and game statistics
+(define-public (update-player-score 
+  (player principal) 
+  (new-score uint)
+)
+  (let 
+    (
+      (current-stats (unwrap! 
+        (map-get? leaderboard { player: player }) 
+        ERR-NOT-AUTHORIZED
+      ))
+      (updated-stats 
+        (merge current-stats 
+          {
+            score: new-score,
+            games-played: (+ (get games-played current-stats) u1)
+          }
+        )
+      )
+    )
+    (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    (map-set leaderboard 
+      { player: player }
+      updated-stats
+    )
+    
+    (ok true)
+  )
+)
