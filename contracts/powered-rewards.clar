@@ -29,3 +29,13 @@
     power-level: uint
   }
 )
+
+;; Leaderboard structure
+(define-map leaderboard 
+  { player: principal }
+  { 
+    score: uint, 
+    games-played: uint,
+    total-rewards: uint 
+  }
+)
