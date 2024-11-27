@@ -225,23 +225,41 @@
   (player principal) 
   (previous-result bool)
 )
-  (let 
-    (
-      (player-stats (unwrap! 
-        (map-get? leaderboard { player: player }) 
-        false
-      ))
-      (reward-amount (calculate-reward (get score player-stats)))
-    )
-    ;; Update total rewards
-    (map-set leaderboard 
-      { player: player }
-      (merge player-stats 
-        { total-rewards: (+ (get total-rewards player-stats) reward-amount) }
+  ;; Additional validation: Ensure the player is registered in the leaderboard
+  (match (map-get? leaderboard { player: player })
+    player-stats 
+      (let 
+        (
+          ;; Additional authorization check (optional)
+          (is-valid-player 
+            (and 
+              (is-some (map-get? leaderboard { player: player }))
+              (> (get score player-stats) u0)  ;; Optional: Only distribute to players with a score
+            )
+          )
+          (reward-amount 
+            (if is-valid-player 
+              (calculate-reward (get score player-stats)) 
+              u0
+            )
+          )
+        )
+        ;; Update total rewards only for valid players
+        (if is-valid-player
+          (begin
+            (map-set leaderboard 
+              { player: player }
+              (merge player-stats 
+                { total-rewards: (+ (get total-rewards player-stats) reward-amount) }
+              )
+            )
+            true
+          )
+          previous-result
+        )
       )
-    )
-    
-    true
+    ;; If player not found in leaderboard, return previous result
+    previous-result
   )
 )
 
