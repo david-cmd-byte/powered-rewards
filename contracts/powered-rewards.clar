@@ -1,8 +1,8 @@
 ;; title: Powered Gaming Ecosystem Smart Contract
-;; summary: A smart contract for managing a gaming ecosystem with NFTs, player registration, score tracking, and reward distribution.
-;; description: This contract allows game administrators to manage game assets, register players, update scores, and distribute rewards. It includes functionalities for minting NFTs, maintaining a leaderboard, and distributing Bitcoin rewards to top players.
+;; summary: A secure smart contract for managing a gaming ecosystem with NFTs, player registration, score tracking, and reward distribution.
+;; description: Enhanced version with improved input validation and security checks.
 
-;; Errors
+;; Error Constants
 (define-constant ERR-NOT-AUTHORIZED (err u1))
 (define-constant ERR-INVALID-GAME-ASSET (err u2))
 (define-constant ERR-INSUFFICIENT-FUNDS (err u3))
@@ -10,6 +10,10 @@
 (define-constant ERR-LEADERBOARD-FULL (err u5))
 (define-constant ERR-ALREADY-REGISTERED (err u6))
 (define-constant ERR-INVALID-REWARD (err u7))
+(define-constant ERR-INVALID-INPUT (err u8))
+(define-constant ERR-INVALID-SCORE (err u9))
+(define-constant ERR-INVALID-FEE (err u10))
+(define-constant ERR-INVALID-ENTRIES (err u11))
 
 ;; Storage for game configuration and state
 (define-data-var game-fee uint u10)  ;; Entry fee in STX
@@ -48,16 +52,32 @@
   (default-to false (map-get? game-admin-whitelist sender))
 )
 
-;; Add game administrator
+;; Validate input strings
+(define-private (is-valid-string (input (string-ascii 200)))
+  (> (len input) u0)
+)
+
+;; Validate principal
+(define-private (is-valid-principal (input principal))
+  (not (is-eq input tx-sender))
+)
+
+;; Add game administrator with enhanced validation
 (define-public (add-game-admin (new-admin principal))
   (begin
+    ;; Ensure only existing admins can add new admins
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    ;; Validate the new admin principal
+    (asserts! (is-valid-principal new-admin) ERR-INVALID-INPUT)
+    
+    ;; Add the new admin to the whitelist
     (map-set game-admin-whitelist new-admin true)
     (ok true)
   )
 )
 
-;; Mint new game asset NFT
+;; Mint new game asset NFT with enhanced validation
 (define-public (mint-game-asset 
   (name (string-ascii 50))
   (description (string-ascii 200))
@@ -68,7 +88,14 @@
     (
       (token-id (+ (var-get total-game-assets) u1))
     )
+    ;; Authorization check
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    ;; Input validation
+    (asserts! (is-valid-string name) ERR-INVALID-INPUT)
+    (asserts! (is-valid-string description) ERR-INVALID-INPUT)
+    (asserts! (is-valid-string rarity) ERR-INVALID-INPUT)
+    (asserts! (and (>= power-level u0) (<= power-level u1000)) ERR-INVALID-INPUT)
     
     ;; Mint NFT
     (try! (nft-mint? game-asset token-id tx-sender))
@@ -91,18 +118,24 @@
   )
 )
 
-;; Transfer game asset
+;; Transfer game asset with improved authorization
 (define-public (transfer-game-asset (token-id uint) (recipient principal))
   (begin
+    ;; Ensure only the owner can transfer
     (asserts! 
       (is-eq tx-sender (unwrap! (nft-get-owner? game-asset token-id) ERR-INVALID-GAME-ASSET))
       ERR-NOT-AUTHORIZED
     )
+    
+    ;; Validate recipient
+    (asserts! (is-valid-principal recipient) ERR-INVALID-INPUT)
+    
+    ;; Perform transfer
     (nft-transfer? game-asset token-id tx-sender recipient)
   )
 )
 
-;; Player registration for game
+;; Player registration for game with enhanced checks
 (define-public (register-player)
   (let 
     (
@@ -137,7 +170,7 @@
   )
 )
 
-;; Update player score and game statistics
+;; Update player score with enhanced validation
 (define-public (update-player-score 
   (player principal) 
   (new-score uint)
@@ -148,32 +181,35 @@
         (map-get? leaderboard { player: player }) 
         ERR-NOT-AUTHORIZED
       ))
-      (updated-stats 
-        (merge current-stats 
-          {
-            score: new-score,
-            games-played: (+ (get games-played current-stats) u1)
-          }
-        )
-      )
     )
+    ;; Authorization check
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
     
+    ;; Score validation
+    (asserts! (and (>= new-score u0) (<= new-score u10000)) ERR-INVALID-SCORE)
+    
+    ;; Update leaderboard
     (map-set leaderboard 
       { player: player }
-      updated-stats
+      (merge current-stats 
+        {
+          score: new-score,
+          games-played: (+ (get games-played current-stats) u1)
+        }
+      )
     )
     
     (ok true)
   )
 )
 
-;; Distribute Bitcoin rewards
+;; Distribute Bitcoin rewards with improved safety
 (define-public (distribute-bitcoin-rewards)
   (let 
     (
       (top-players (get-top-players))
     )
+    ;; Authorization check
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
     
     ;; Placeholder for Bitcoin reward distribution logic
@@ -209,15 +245,15 @@
   )
 )
 
-;; Calculate reward based on player's score
+;; Calculate reward based on player's score with improved logic
 (define-private (calculate-reward (score uint))
-  (if (> score u100)
+  (if (and (> score u100) (<= score u10000))
     (* score u10)  ;; More complex reward calculation possible
     u0
   )
 )
 
-;; Get top players
+;; Get top players with placeholder implementation
 (define-read-only (get-top-players)
   (let 
     (
@@ -231,14 +267,20 @@
   )
 )
 
-;; Initialize game configuration
+;; Initialize game configuration with enhanced validation
 (define-public (initialize-game 
   (entry-fee uint) 
   (max-entries uint)
 )
   (begin
+    ;; Authorization check
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
     
+    ;; Input validation
+    (asserts! (and (>= entry-fee u1) (<= entry-fee u1000)) ERR-INVALID-FEE)
+    (asserts! (and (>= max-entries u1) (<= max-entries u500)) ERR-INVALID-ENTRIES)
+    
+    ;; Set game parameters
     (var-set game-fee entry-fee)
     (var-set max-leaderboard-entries max-entries)
     
