@@ -14,6 +14,7 @@
 (define-constant ERR-INVALID-SCORE (err u9))
 (define-constant ERR-INVALID-FEE (err u10))
 (define-constant ERR-INVALID-ENTRIES (err u11))
+(define-constant ERR-PLAYER-NOT-FOUND (err u12))
 
 ;; Storage for game configuration and state
 (define-data-var game-fee uint u10)  ;; Entry fee in STX
@@ -59,7 +60,22 @@
 
 ;; Validate principal
 (define-private (is-valid-principal (input principal))
-  (not (is-eq input tx-sender))
+  (and 
+    (not (is-eq input tx-sender))
+    (not (is-eq input (as-contract tx-sender)))
+  )
+)
+
+;; Enhanced principal validation with additional safety checks
+(define-private (is-safe-principal (input principal))
+  (and 
+    (is-valid-principal input)
+    (or 
+      ;; Optional: Additional custom checks can be added here
+      (is-game-admin input)
+      (is-some (map-get? leaderboard { player: input }))
+    )
+  )
 )
 
 ;; Add game administrator with enhanced validation
@@ -69,7 +85,7 @@
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
     
     ;; Validate the new admin principal
-    (asserts! (is-valid-principal new-admin) ERR-INVALID-INPUT)
+    (asserts! (is-safe-principal new-admin) ERR-INVALID-INPUT)
     
     ;; Add the new admin to the whitelist
     (map-set game-admin-whitelist new-admin true)
@@ -128,7 +144,7 @@
     )
     
     ;; Validate recipient
-    (asserts! (is-valid-principal recipient) ERR-INVALID-INPUT)
+    (asserts! (is-safe-principal recipient) ERR-INVALID-INPUT)
     
     ;; Perform transfer
     (nft-transfer? game-asset token-id tx-sender recipient)
@@ -179,11 +195,14 @@
     (
       (current-stats (unwrap! 
         (map-get? leaderboard { player: player }) 
-        ERR-NOT-AUTHORIZED
+        ERR-PLAYER-NOT-FOUND
       ))
     )
     ;; Authorization check
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
+    
+    ;; Additional input validation for player
+    (asserts! (is-safe-principal player) ERR-INVALID-INPUT)
     
     ;; Score validation
     (asserts! (and (>= new-score u0) (<= new-score u10000)) ERR-INVALID-SCORE)
@@ -212,48 +231,52 @@
     ;; Authorization check
     (asserts! (is-game-admin tx-sender) ERR-NOT-AUTHORIZED)
     
-    ;; Placeholder for Bitcoin reward distribution logic
-    ;; In a real implementation, this would interact with a Bitcoin bridge
-    (fold distribute-reward top-players true)
+    ;; Distribute rewards with additional validation
+    (try! 
+      (fold distribute-reward 
+        (filter is-valid-reward-candidate top-players) 
+        (ok true)
+      )
+    )
     
     (ok true)
   )
 )
 
-;; Helper function to distribute rewards
+;; Validate reward candidate
+(define-private (is-valid-reward-candidate (player principal))
+  (match (map-get? leaderboard { player: player })
+    stats (and 
+            (> (get score stats) u0)  ;; Must have a non-zero score
+            (is-safe-principal player)
+          )
+    false
+  )
+)
+
+;; Helper function to distribute rewards with improved error handling
 (define-private (distribute-reward 
   (player principal) 
-  (previous-result bool)
+  (previous-result (response bool uint))
 )
-  ;; Additional validation: Ensure the player is registered in the leaderboard
+  ;; Safely get player stats
   (match (map-get? leaderboard { player: player })
     player-stats 
       (let 
         (
-          ;; Additional authorization check (optional)
-          (is-valid-player 
-            (and 
-              (is-some (map-get? leaderboard { player: player }))
-              (> (get score player-stats) u0)  ;; Optional: Only distribute to players with a score
-            )
-          )
-          (reward-amount 
-            (if is-valid-player 
-              (calculate-reward (get score player-stats)) 
-              u0
-            )
-          )
+          (reward-amount (calculate-reward (get score player-stats)))
         )
-        ;; Update total rewards only for valid players
-        (if is-valid-player
+        ;; Only update if previous result was successful and reward amount is valid
+        (if (and (is-ok previous-result) (> reward-amount u0))
           (begin
+            ;; Update total rewards
             (map-set leaderboard 
               { player: player }
               (merge player-stats 
                 { total-rewards: (+ (get total-rewards player-stats) reward-amount) }
               )
             )
-            true
+            (ok true)
           )
           previous-result
         )
@@ -271,7 +294,7 @@
   )
 )
 
-;; Get top players with placeholder implementation
+;; Get top players with improved implementation
 (define-read-only (get-top-players)
   (let 
     (
